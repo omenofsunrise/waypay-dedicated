@@ -1,9 +1,11 @@
 package kernel
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 
+	"waypay_dedicated/internal/migrator"
 	"waypay_dedicated/internal/rbac"
 	"waypay_dedicated/sdk"
 )
@@ -14,11 +16,20 @@ type Kernel struct {
 	log         func(string, ...any)
 	routes      []sdk.Route
 	permissions map[string]sdk.Permission
+	db          *sql.DB
+	migrator    *migrator.Migrator
 }
 
-func New(rbacEngine *rbac.Engine, log func(msg string, args ...any)) *Kernel {
+func New(
+	rbacEngine *rbac.Engine,
+	mig *migrator.Migrator,
+	db *sql.DB,
+	log func(msg string, args ...any),
+) *Kernel {
 	return &Kernel{
 		rbac:        rbacEngine,
+		migrator:    mig,
+		db:          db,
 		log:         log,
 		mux:         http.NewServeMux(),
 		permissions: map[string]sdk.Permission{},
@@ -53,6 +64,11 @@ func (k *Kernel) Register(m sdk.Module) error {
 			k.routes = append(k.routes, route)
 		},
 		Log: k.log,
+		DB:  k.db,
+		Migrations: &migrationFacade{
+			migrator: k.migrator,
+			module:   manifest.Name,
+		},
 	}
 
 	if err := m.Register(ctx); err != nil {
@@ -60,6 +76,36 @@ func (k *Kernel) Register(m sdk.Module) error {
 	}
 
 	k.log("module registered", "name", manifest.Name, "version", manifest.Version)
+	return nil
+}
+
+func (k *Kernel) BuildMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	for _, r := range k.routes {
+		handler := k.withAuth(k.requirePerm(r.RequiredPerm, r.Handler))
+		mux.HandleFunc(r.Method+" "+r.Path, handler)
+	}
+	return mux
+}
+
+func (k *Kernel) LoadAll(modules []sdk.Module) error {
+	// TODO
+	// 1) сбор манифестов
+	// 2) проверка конфликтов и версий
+	// 3) топологическая сортировка
+	// 4) регистрация в правильном порядке
+
+	loaded := map[string]bool{}
+	for _, m := range modules {
+		manifest := m.Manifest()
+		if loaded[manifest.Name] {
+			return fmt.Errorf("module %q loaded twice", manifest.Name)
+		}
+		if err := k.Register(m); err != nil {
+			return fmt.Errorf("load module %s: %w", manifest.Name, err)
+		}
+		loaded[manifest.Name] = true
+	}
 	return nil
 }
 

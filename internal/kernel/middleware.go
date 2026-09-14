@@ -10,7 +10,7 @@ type ctxKey string
 
 const userKey ctxKey = "user"
 
-func (k *Kernel) WithAuth(next http.HandlerFunc) http.HandlerFunc {
+func (k *Kernel) withAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := "test_id"
 		roles := []string{"admin"}
@@ -22,7 +22,7 @@ func (k *Kernel) WithAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (k *Kernel) RequirePerm(perm string, next http.HandlerFunc) http.HandlerFunc {
+func (k *Kernel) requirePerm(perm string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, _ := r.Context().Value(userKey).(rbac.User)
 		if !k.rbac.Can(u, perm) {

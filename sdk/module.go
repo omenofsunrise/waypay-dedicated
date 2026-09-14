@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"database/sql"
 	"net/http"
 )
 
@@ -29,6 +30,8 @@ type Role struct {
 type Context struct {
 	RegisterRoute func(Route)
 	Log           func(msg string, args ...any)
+	DB            *sql.DB // all modules are trusted for now (Not AI generated)
+	Migrations    MigrationRunner
 }
 
 type Route struct {
