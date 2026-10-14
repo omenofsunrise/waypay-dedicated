@@ -10,7 +10,7 @@ import (
 	"waypay_dedicated/internal/config"
 	"waypay_dedicated/internal/kernel"
 	"waypay_dedicated/internal/migrator"
-	"waypay_dedicated/internal/modules/clients"
+	"waypay_dedicated/internal/modules/persons"
 	"waypay_dedicated/internal/rbac"
 	"waypay_dedicated/sdk"
 )
@@ -44,7 +44,7 @@ func main() {
 	k := kernel.New(rbacEngine, mig, db, logger)
 
 	modules := []sdk.Module{
-		clients.New(),
+		persons.New(),
 	}
 
 	if err := k.LoadAll(modules); err != nil {
